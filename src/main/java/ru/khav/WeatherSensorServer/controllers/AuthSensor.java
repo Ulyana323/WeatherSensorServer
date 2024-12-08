@@ -1,10 +1,12 @@
 package ru.khav.WeatherSensorServer.controllers;
-
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -12,7 +14,9 @@ import ru.khav.WeatherSensorServer.DTO.SensorDTO;
 import ru.khav.WeatherSensorServer.models.Sensor;
 import ru.khav.WeatherSensorServer.security.JWTUtill;
 import ru.khav.WeatherSensorServer.services.RegistrationService;
+import ru.khav.WeatherSensorServer.utill.SensorValidation;
 
+import javax.validation.Valid;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -22,6 +26,8 @@ public class AuthSensor {
 
     @Autowired
     RegistrationService registrationService;
+    @Autowired
+    SensorValidation sensorValidation;
     @Autowired
     ModelMapper modelMapper;
     @Autowired
@@ -35,7 +41,13 @@ public class AuthSensor {
     }
 
     @PostMapping("/registr")
-    public Map<String, String> registerNewSensor(@RequestBody SensorDTO sensorDTO) {
+    public ResponseEntity<?> registerNewSensor(@RequestBody @Valid SensorDTO sensorDTO,
+                                            BindingResult bindingResult) {
+        sensorValidation.validate(convertFromDTO(sensorDTO),bindingResult);
+        if(bindingResult.hasErrors())
+        {
+            return new ResponseEntity<>("this sensor is already existing",HttpStatus.BAD_REQUEST);
+        }
         registrationService.registr(convertFromDTO(sensorDTO));
         String token = jwtUtill.generateToken(sensorDTO.getName());
 
@@ -43,7 +55,7 @@ public class AuthSensor {
         map.put("jwt-token-registr", token);
 
 
-        return map;
+        return new ResponseEntity<>(map,HttpStatus.ACCEPTED);
     }
 
     @PostMapping("/log")
